@@ -1,0 +1,255 @@
+Reading List for BioDrone-RL 📚
+Organized by what you need to understand and when to read it.
+
+Tier 1 — Read These First (Foundational)
+1. Reinforcement Learning Basics
+"Spinning Up in Deep RL" — OpenAI
+  Type    : Free online guide (not a paper)
+  URL     : spinningup.openai.com
+  Read    : The "Key Concepts" and "Intro to RL" sections
+  Why     : Best practical RL intro ever written. Covers
+            policy gradients, PPO, everything we're using.
+  Time    : 2-3 hours
+
+"Reinforcement Learning: An Introduction" — Sutton & Barto
+  Type    : Free textbook (PDF available legally)
+  URL     : incompleteideas.net/book/the-book-2nd.html
+  Read    : Chapters 1, 3, 4, 13 (policy gradients)
+  Why     : The bible of RL. Chapter 13 is literally
+            the REINFORCE algorithm we implemented.
+  Time    : 4-6 hours (just the chapters listed)
+
+  
+
+
+55 x 23
+ zsh
+ caffeinate
+OUTPUT
+CHAT
+BUILDING BIODRONE-RL: PHASE 1 ENVIRONMENT SETUP
+Used 2 references
+Reading List for BioDrone-RL 📚
+Organized by what you need to understand and when to read it.
+
+Tier 1 — Read These First (Foundational)
+1. Reinforcement Learning Basics
+
+"Spinning Up in Deep RL" — OpenAI  Type    : Free online guide (not a paper)  URL     : spinningup.openai.com  Read    : The "Key Concepts" and "Intro to RL" sections  Why     : Best practical RL intro ever written. Covers            policy gradients, PPO, everything we're using.  Time    : 2-3 hours"Reinforcement Learning: An Introduction" — Sutton & Barto  Type    : Free textbook (PDF available legally)  URL     : incompleteideas.net/book/the-book-2nd.html  Read    : Chapters 1, 3, 4, 13 (policy gradients)  Why     : The bible of RL. Chapter 13 is literally            the REINFORCE algorithm we implemented.  Time    : 4-6 hours (just the chapters listed)
+2. Policy Gradient — What We're Doing Right Now
+"Policy Gradient Methods for Reinforcement Learning 
+ with Function Approximation" — Sutton et al. 2000
+  Type    : Original paper (4 pages)
+  URL     : papers.nips.cc/paper/1999/hash/464d...
+  Why     : The theoretical foundation of REINFORCE.
+            After reading this, you'll understand WHY
+            log_prob × G_t is the correct gradient.
+  Time    : 1 hour
+
+"Proximal Policy Optimization Algorithms" — Schulman et al. 2017
+  Type    : OpenAI paper (12 pages)
+  URL     : arxiv.org/abs/1707.06347
+  Why     : PPO is Phase 6. Read this now so you
+            understand where we're heading.
+            The clip ratio trick is elegant.
+  Time    : 2 hours
+
+
+  Tier 2 — Read Before Phase 5 (3D Environment)
+3. Drone RL — What Others Have Done
+"Learning to Fly in Seconds" — Eschmann et al. 2023
+  Type    : Research paper
+  URL     : arxiv.org/abs/2311.13081
+  Why     : State of the art fast drone RL training.
+            This is your primary benchmark to beat.
+            Study their reward function carefully.
+  Time    : 2 hours
+
+"Reinforcement Learning for UAV Attitude Control"
+ — Koch et al. 2019
+  Type    : Research paper
+  URL     : arxiv.org/abs/1804.04154
+  Why     : Shows how RL handles continuous drone
+            control. Good reference for action space
+            design in Phase 7.
+  Time    : 1.5 hours
+
+"Sim-to-Real Transfer of Robotic Control with 
+ Dynamics Randomization" — Peng et al. 2018
+  Type    : OpenAI paper
+  URL     : arxiv.org/abs/1710.06537
+  Why     : THE domain randomization paper. Phase 8
+            is directly based on this. Read before
+            you implement domain_rand.py.
+  Time    : 2 hours
+
+  4. Sparse Neural Networks
+  "The Lottery Ticket Hypothesis: Finding Sparse,
+ Trainable Neural Networks" — Frankle & Carlin 2019
+  Type    : ICLR 2019 Best Paper
+  URL     : arxiv.org/abs/1803.03635
+  Why     : The most important sparse networks paper.
+            Different from our approach (they LEARN
+            sparsity, we FIX it) but essential context.
+            Reviewers will ask you about this.
+  Time    : 2 hours
+
+"Rigging the Lottery: Making All Tickets Winners"
+ — Evci et al. 2020
+  Type    : ICML 2020 paper
+  URL     : arxiv.org/abs/1911.11134
+  Why     : Follow-up to lottery ticket. Shows that
+            dynamic sparse training works well.
+            Helps you argue WHY fixed biological
+            topology is a different and valid approach.
+  Time    : 1.5 hours
+
+"Deep Learning with Limited Numerical Precision"
+ — Gupta et al. 2015
+  Type    : Paper
+  Why     : Background on why sparse/efficient networks
+            matter for edge deployment (Jetson Nano etc)
+  Time    : 1 hour
+
+
+  Tier 3 — Read Before Phase 9 (Real Connectome)
+5. The FlyWire Connectome — The Core Biology
+"Neuronal wiring diagram of an adult brain" 
+ — Dorkenwald et al. / FlyWire Consortium 2023
+  Type    : Nature paper (THE connectome paper)
+  URL     : nature.com/articles/s41586-023-06681-1
+  Why     : This is the dataset we will literally use
+            in Phase 9. Read the abstract, intro, and
+            the section on visual circuits specifically.
+            You don't need to understand all the 
+            neuroscience — focus on the DATA FORMAT.
+  Time    : 3 hours
+
+"A connectome of the Drosophila central complex 
+ reveals network motifs suitable for flexible 
+ navigation and context-dependent action selection"
+ — Hulse et al. 2021
+  Type    : eLife paper
+  URL     : elifesciences.org/articles/66039
+  Why     : Specifically about the NAVIGATION circuits
+            in the fly brain. This describes the exact
+            neurons we'll extract in Phase 9.
+            More relevant than the full brain paper.
+  Time    : 2 hours
+
+"The Drosophila melanogaster Visual System"
+ — Review paper (multiple authors)
+  Type    : Review article
+  Search  : "Drosophila visual system review 2020"
+            on Google Scholar
+  Why     : Explains L1/L2/L3, T4/T5, LPLC2 neurons
+            in plain language. Essential background
+            before touching the connectome data.
+  Time    : 2 hours
+
+  6. Neuromorphic Computing & Bio-Inspired AI
+  "Neuromorphic Computing and Engineering" 
+ — Schuman et al. 2022
+  Type    : Review paper
+  URL     : arxiv.org/abs/2201.04339  
+  Why     : Covers how biological neural architectures
+            are being used in computing. Positions
+            your work in the broader field.
+            Useful for the intro section of your paper.
+  Time    : 2 hours
+
+"Biologically Plausible Deep Learning — But How Far
+ Can We Go with Shallow Networks?"
+ — Bartunov et al. 2018
+  Type    : NeurIPS paper
+  URL     : arxiv.org/abs/1905.09406
+  Why     : Asks the same question you're asking:
+            how much biological constraint is too much?
+            Good for framing your research questions.
+  Time    : 1.5 hours
+
+  Tier 4 — Read When Writing the Paper
+7. Related Work You Must Know
+"Neuroevolution of Augmenting Topologies (NEAT)"
+ — Stanley & Miikkulainen 2002
+  Type    : Classic paper
+  URL     : nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf
+  Why     : Earliest work on evolving neural TOPOLOGY
+            (not just weights). Reviewers may compare
+            your fixed biological topology to evolved
+            topology. Know the difference.
+  Time    : 1.5 hours
+
+"Graph Neural Networks for Connectome-Based 
+ Prediction" — Multiple papers on Google Scholar
+  Search  : "connectome graph neural network"
+  Why     : Others have used connectome data as graph
+            structure for GNNs. Your work uses it as
+            a policy network mask — different but
+            related. Important for related work section.
+  Time    : 1-2 hours
+
+"Energy-Efficient Neural Network Inference for 
+ Autonomous Drones" — search Google Scholar
+  Why     : Motivates WHY sparse networks matter for
+            real hardware deployment (10x less power)
+            Strengthens your practical contribution.
+  Time    : 1 hour
+
+
+  Quick Reference — What to Read and When
+  RIGHT NOW (before Phase 4A):
+  ✅ Spinning Up in Deep RL     (OpenAI guide)
+  ✅ Sutton & Barto Ch 1,3,13   (RL textbook)
+  ✅ PPO paper                  (Schulman 2017)
+
+BEFORE PHASE 5 (3D env):
+  📖 Learning to Fly in Seconds (Eschmann 2023)
+  📖 Sim-to-Real / Domain Rand  (Peng 2018)
+  📖 Lottery Ticket Hypothesis  (Frankle 2019)
+
+BEFORE PHASE 9 (connectome):
+  📖 FlyWire Nature paper       (Dorkenwald 2023)
+  📖 Drosophila visual system   (review paper)
+  📖 Central complex navigation (Hulse 2021)
+
+WHEN WRITING PAPER:
+  📖 NEAT paper                 (Stanley 2002)
+  📖 Neuromorphic review        (Schuman 2022)
+  📖 GNN connectome papers      (various)
+
+
+how to read papers = 
+
+Pass 1 — 10 minutes:
+  Read: Title, Abstract, Conclusion, Figure captions
+  Goal: Understand WHAT they did and WHAT they found
+
+Pass 2 — 30 minutes:
+  Read: Introduction, Results/Experiments section
+  Goal: Understand WHY they did it and HOW well it worked
+
+Pass 3 — Full read (only for the most relevant papers):
+  Read: Everything including Methods
+  Goal: Understand HOW they did it
+  Do this for: FlyWire paper, PPO paper, Peng 2018
+
+For your project specifically:
+  When reading any paper ask yourself:
+  1. How does their environment compare to ours?
+  2. How does their network compare to ours?
+  3. What metrics do they report? (we should report same)
+  4. What would they say about sparse connectome approach?
+
+  "Yannic Kilcher" on YouTube
+  URL: youtube.com/@YannicKilcher
+  
+  Watch these specific videos:
+  - "PPO explained"
+  - "The Lottery Ticket Hypothesis explained"  
+  - Any connectome/neuro-AI videos
+  
+  Why: He reads papers so you don't have to.
+       Great for getting the intuition before
+       reading the full paper.
+       

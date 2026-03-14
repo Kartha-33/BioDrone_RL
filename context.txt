@@ -1,0 +1,881 @@
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  BioDrone-RL: Biologically-Constrained Sparse Connectome Policy Networks
+  for Autonomous Drone Navigation
+  
+  Author      : Achuth Kartha
+  Institution : IIT Hyderabad
+  Started     : March 2026
+  Type        : Open-ended Research Project
+  Hardware    : M1 MacBook Air (8GB) + Cloud (Modal/HuggingFace) when needed
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+════════════════════════════════════════════════════════════════════════════════
+  SECTION 1: PROJECT VISION
+════════════════════════════════════════════════════════════════════════════════
+
+ONE LINE SUMMARY:
+  Train a drone navigation policy whose neural architecture is constrained
+  by the actual wiring diagram of a fruit fly's visual system — then test
+  whether 50 million years of biological evolution produced a better 
+  inductive bias than random sparsity for robot navigation.
+
+THE CORE IDEA:
+  Standard deep RL for drones uses dense neural networks with millions of
+  parameters. This project asks: what if instead of a dense black-box, we
+  use a sparse network whose connectivity pattern is copied directly from
+  the Drosophila melanogaster (fruit fly) connectome?
+
+  A fruit fly:
+    - Navigates complex 3D environments
+    - Detects and avoids obstacles at high speed
+    - Uses ~100,000 neurons total
+    - Runs on 10 microwatts of power
+    - Has a FULLY MAPPED brain (FlyWire, Princeton 2023)
+
+  Our hypothesis: the fly's visual navigation circuit, shaped by 50 million
+  years of evolution, encodes structural inductive biases that help a sparse
+  policy network learn drone navigation faster and generalize better than
+  a randomly sparse or dense network.
+
+THE RESEARCH CONTRIBUTION:
+  1. First application of real connectome topology as a policy network mask
+     in deep reinforcement learning for drone navigation
+  2. Systematic comparison: dense vs random sparse vs connectome-sparse
+  3. Demonstration of sim-to-real viability of sparse connectome policies
+  4. Energy efficiency analysis: sparse connectome vs standard approaches
+
+ULTIMATE GOAL:
+  A complete software pipeline from:
+    Biologically-constrained RL training
+             ↓
+    Sim-to-real transfer
+             ↓
+    Physical drone deployment
+  
+  Hardware target: Custom PX4 quadrotor or DJI Tello (TBD based on resources)
+
+
+════════════════════════════════════════════════════════════════════════════════
+  SECTION 2: CURRENT STATUS
+════════════════════════════════════════════════════════════════════════════════
+
+  ✅ Phase 1  : 2D Gymnasium environment (env.py)
+  ✅ Phase 2  : Sparse connectome brain — MaskedLinear (model.py)
+  ✅ Phase 3  : REINFORCE training loop (train.py)
+  ✅ Phase 4  : 2D Pygame visualizer (render.py v2)
+  ⏳ Phase 4A : Pseudo-3D first-person renderer (render_3d.py)
+  ⏳ Phase 5  : 3D custom Gymnasium environment (env_3d.py)
+  ⏳ Phase 6  : PPO training loop (train_ppo.py)
+  ⏳ Phase 7  : Continuous action space upgrade
+  ⏳ Phase 8  : Domain randomization (domain_rand.py)
+  ⏳ Phase 9  : Real FlyWire connectome integration (connectome.py)
+  ⏳ Phase 10 : Benchmarking suite (benchmark.py)
+  ⏳ Phase 11 : Large-scale cloud training (modal_train.py)
+  ⏳ Phase 12 : Research paper writeup
+
+TRAINING RESULTS SO FAR:
+  - Algorithm       : REINFORCE
+  - Episodes        : 1000
+  - Best Avg Reward : 513.96  (far exceeds 200-step episode cap)
+  - Sparsity        : 80% (only 50/256 synapses active)
+  - Training Time   : ~46 minutes on M1 MPS
+  - Weights saved   : weights/fly_policy.pth
+  - Connectome intact post-training: ✅ Layer1 31/160, Layer2 19/96
+
+
+════════════════════════════════════════════════════════════════════════════════
+  SECTION 3: COMPLETE FILE STRUCTURE
+════════════════════════════════════════════════════════════════════════════════
+
+BioDrone_RL/
+│
+├── context.txt              ← THIS FILE — project bible and progress tracker
+│
+├── ── PHASE 1-4 (COMPLETE) ──────────────────────────────────────────────────
+│
+├── env.py                   ← 2D tunnel Gymnasium environment
+│   └── BioDroneEnv
+│       ├── 5 ray-cast sensors (Far Left, Near Left, Forward, Near Right, Far Right)
+│       ├── Discrete(3) actions: Left, Straight, Right
+│       ├── Randomly curving tunnel (random-walk drift)
+│       ├── Reward: +1/step, -100 crash
+│       └── Max 1000 steps per episode
+│
+├── model.py                 ← Sparse biological brain
+│   ├── MaskedLinear(nn.Module)
+│   │   ├── Fixed boolean connectivity mask (never changes)
+│   │   ├── register_buffer('mask') — saved but not a parameter
+│   │   ├── Kaiming initialization
+│   │   └── Zero gradients through severed synapses (verified)
+│   └── FlyPolicyNetwork
+│       ├── Input(5) → MaskedLinear(32) → ReLU → MaskedLinear(3) → Softmax
+│       ├── Sparsity: 80% (default)
+│       ├── Returns Categorical distribution
+│       └── get_action() convenience method
+│
+├── train.py                 ← REINFORCE training loop
+│   ├── Hyperparams: episodes=1000, gamma=0.99, lr=1e-3
+│   ├── compute_discounted_returns() — normalized G_t
+│   ├── run_episode() — full rollout collection
+│   ├── update_policy() — REINFORCE gradient step
+│   ├── Gradient clipping (max_norm=1.0)
+│   ├── Best model checkpoint saving
+│   └── Post-training connectome integrity check
+│
+├── render.py                ← 2D Pygame visualizer (v2)
+│   ├── Scrolling tunnel trail (60 frame history)
+│   ├── 5 sensor rays (yellow→red as danger increases)
+│   ├── Drone triangle (colour = action taken)
+│   ├── Connectome dot-grid panel (green=active, dark=severed)
+│   ├── Sensor reading bars (bottom right)
+│   └── Controls: Q=quit, SPACE=pause, R=restart
+│
+├── test_env.py              ← Phase 1 sanity check script
+│
+├── weights/
+│   └── fly_policy.pth       ← Trained weights checkpoint
+│       ├── episode
+│       ├── model_state
+│       ├── optimizer_state
+│       ├── best_avg_reward
+│       ├── sparsity
+│       └── hyperparams
+│
+├── ── PHASE 4A-8 (UPCOMING) ─────────────────────────────────────────────────
+│
+├── render_3d.py             ← Pseudo-3D first-person Pygame renderer
+│   └── Perspective projection, vanishing point, trapezoid tunnel segments
+│
+├── env_3d.py                ← 3D Gymnasium environment
+│   ├── 6-DOF physics (roll, pitch, yaw, thrust)
+│   ├── 3D tunnel with obstacles
+│   ├── Realistic sensor suite:
+│   │   ├── Depth rays (12-point sphere)
+│   │   ├── IMU (accelerometer + gyro with noise)
+│   │   └── Optical flow (velocity estimate)
+│   ├── Continuous action space: Box(4) [roll, pitch, yaw, thrust]
+│   └── Domain randomization built in
+│
+├── model_v2.py              ← Scaled sparse brain for 3D
+│   ├── Input(18+) → MaskedLinear(64) → MaskedLinear(32) → Output(4)
+│   ├── Actor-Critic architecture (for PPO)
+│   │   ├── Shared sparse trunk
+│   │   ├── Policy head (actor)
+│   │   └── Value head (critic)
+│   └── Continuous action output (Gaussian distribution)
+│
+├── train_ppo.py             ← PPO training loop
+│   ├── Clipped surrogate objective
+│   ├── Value function loss
+│   ├── Entropy bonus
+│   ├── GAE (Generalized Advantage Estimation)
+│   ├── Mini-batch updates
+│   └── MPS accelerated
+│
+├── domain_rand.py           ← Domain randomization module
+│   ├── Tunnel geometry randomization
+│   ├── Sensor noise injection
+│   ├── Physics parameter randomization
+│   └── This IS the sim-to-real bridge
+│
+├── ── PHASE 9-12 (FUTURE) ───────────────────────────────────────────────────
+│
+├── connectome.py            ← Real FlyWire connectome integration
+│   ├── Download FlyWire data (fly.flywire.ai)
+│   ├── Extract visual navigation circuit:
+│   │   ├── Lamina neurons L1,L2,L3 (edge/motion detection)
+│   │   ├── T4, T5 (motion direction detection)
+│   │   ├── LPLC2 (looming/collision detector)
+│   │   └── DNp09, DNa02 (descending motor commands)
+│   ├── Build adjacency matrix from neuron pairs
+│   ├── Scale to match our network dimensions
+│   └── Replace random mask with real biological wiring
+│
+├── benchmark.py             ← Benchmarking suite
+│   ├── Dense baseline (same architecture, no mask)
+│   ├── Random sparse baseline (current approach)
+│   ├── Connectome sparse (Phase 9)
+│   ├── Metrics:
+│   │   ├── Sample efficiency (reward vs episodes)
+│   │   ├── Generalization (train tunnel → unseen tunnels)
+│   │   ├── Parameter efficiency (reward per active synapse)
+│   │   └── Inference speed (steps/second)
+│   └── Sparsity sweep: 10%, 30%, 50%, 70%, 80%, 90%, 95%, 99%
+│
+├── modal_train.py           ← Cloud training script (Modal.com)
+│   ├── Same PPO loop as train_ppo.py
+│   ├── Parallelized across multiple envs
+│   ├── A100 GPU accelerated
+│   └── Automatic checkpoint upload to HuggingFace Hub
+│
+└── requirements.txt         ← All dependencies
+
+
+════════════════════════════════════════════════════════════════════════════════
+  SECTION 4: DETAILED PHASE BREAKDOWN
+════════════════════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────────────────────────────
+  PHASE 4A — Pseudo-3D First-Person Renderer
+  File: render_3d.py
+  Hardware: M1 MacBook Air
+  Estimated Time: 1 session
+────────────────────────────────────────────────────────────────────────────────
+
+  GOAL:
+    Replace the 2D top-down view with a first-person perspective projection
+    that shows the drone flying through a 3D-looking tunnel.
+
+  TECHNIQUE:
+    Perspective projection (no OpenGL, pure Pygame math):
+    - Tunnel is drawn as a series of trapezoid "rings" shrinking toward
+      a central vanishing point
+    - Each ring = one time step ahead of the drone
+    - Rings closer to drone = larger, rings further = smaller
+    - Tunnel curves are encoded as horizontal offset of ring centers
+    - Result looks like a retro racing game / sci-fi corridor
+
+  VISUAL ELEMENTS:
+    - First-person tunnel with vanishing point
+    - Depth-faded wall colours (bright near, dark far)
+    - Drone crosshair/reticle at screen center
+    - Sensor rays projected into 3D perspective
+    - Same HUD: sensor bars, connectome panel, episode stats
+    - Action indicator (Left/Straight/Right with colour)
+
+  SUCCESS CRITERIA:
+    - Tunnel visibly curves left and right
+    - Sensor rays show correctly in perspective
+    - 30 FPS maintained on M1
+
+────────────────────────────────────────────────────────────────────────────────
+  PHASE 5 — 3D Custom Gymnasium Environment
+  File: env_3d.py
+  Hardware: M1 MacBook Air
+  Estimated Time: 2 sessions
+────────────────────────────────────────────────────────────────────────────────
+
+  GOAL:
+    Replace the 1D lateral movement model with a proper 3D physics
+    environment where the drone has full 6-DOF movement.
+
+  STATE SPACE (observation):
+    [
+      # Depth sensors (12 rays in sphere pattern)
+      d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11,  # 12 values
+      # IMU
+      vel_x, vel_y, vel_z,    # linear velocity   (3 values)
+      roll, pitch, yaw,        # orientation        (3 values)
+      # Relative position
+      dist_to_center,          # distance from tunnel center (1 value)
+      heading_error,           # angle offset from tunnel direction (1 value)
+    ]
+    Total observation: 20 values
+
+  ACTION SPACE (continuous):
+    Box(low=-1, high=1, shape=(4,))
+    [roll_cmd, pitch_cmd, yaw_cmd, thrust_cmd]
+
+  PHYSICS MODEL:
+    - Simplified quadrotor dynamics (not full Navier-Stokes)
+    - Drag, gravity, motor response time
+    - dt = 0.05s (20Hz control loop)
+    - Good enough for algorithm development
+
+  TUNNEL GEOMETRY:
+    - 3D cylindrical tunnel
+    - Curves in X and Y (left/right AND up/down)
+    - Variable radius (narrows in hard sections)
+    - Procedurally generated per episode
+
+  REWARD FUNCTION:
+    +1.0   per step survived
+    +0.5   bonus for staying near tunnel center
+    -0.1   per step * distance from center (encourages centering)
+    -100   crash into wall
+    +50    reach end of tunnel (if applicable)
+
+  DOMAIN RANDOMIZATION (built in from day 1):
+    - Tunnel radius: uniform(30, 80) units
+    - Curve intensity: uniform(0.1, 0.8)
+    - Sensor noise: gaussian(0, sigma) where sigma ~ uniform(0, 0.05)
+    - Physics drag: uniform(0.8, 1.2) × nominal
+    - Initial position jitter: uniform(-5, 5) in all axes
+
+  SUCCESS CRITERIA:
+    - Random agent survives > 10 steps
+    - Observation space correctly shaped
+    - Domain randomization produces varied episodes
+
+────────────────────────────────────────────────────────────────────────────────
+  PHASE 6 — PPO Training Loop
+  File: train_ppo.py
+  Hardware: M1 MacBook Air (short runs) + Modal.com (long runs)
+  Estimated Time: 2 sessions
+────────────────────────────────────────────────────────────────────────────────
+
+  GOAL:
+    Replace REINFORCE with Proximal Policy Optimization (PPO).
+    PPO is the industry standard for drone RL and handles:
+      - Continuous action spaces
+      - Noisy reward signals
+      - High-variance 3D environments
+
+  WHY PPO OVER REINFORCE:
+    REINFORCE:
+      - High variance gradients
+      - Needs full episode before update
+      - Unstable with continuous actions
+      - Bad with sparse rewards
+
+    PPO:
+      - Low variance (clip ratio prevents large updates)
+      - Updates every N steps (not full episode)
+      - Stable with continuous actions
+      - Industry standard (used by OpenAI, DeepMind)
+
+  ALGORITHM:
+    1. Collect T timesteps of experience using current policy
+    2. Compute GAE advantages: A_t = sum(gamma^k * delta_{t+k})
+    3. For K epochs, sample mini-batches and compute:
+       a. Policy loss:  L_clip = min(r_t * A_t, clip(r_t, 1-ε, 1+ε) * A_t)
+       b. Value loss:   L_vf = (V(s_t) - G_t)^2
+       c. Entropy loss: L_ent = -entropy(π)  [encourages exploration]
+       d. Total loss:   L = -L_clip + c1*L_vf - c2*L_ent
+    4. Backprop through sparse connectome (dead synapses stay dead)
+    5. Clip gradients, Adam step
+
+  HYPERPARAMETERS (starting point):
+    lr          = 3e-4
+    gamma       = 0.99
+    gae_lambda  = 0.95
+    clip_eps    = 0.2
+    value_coef  = 0.5
+    entropy_coef= 0.01
+    n_steps     = 2048    (steps per update)
+    batch_size  = 64
+    n_epochs    = 10      (epochs per update)
+    max_grad_norm = 0.5
+
+  SUCCESS CRITERIA:
+    - Training stable (no exploding gradients)
+    - Average reward consistently increasing over 100k steps
+    - Drone survives > 500 steps in 3D tunnel
+
+────────────────────────────────────────────────────────────────────────────────
+  PHASE 7 — Scaled Sparse Brain for 3D
+  File: model_v2.py
+  Hardware: M1 MacBook Air
+  Estimated Time: 1 session
+────────────────────────────────────────────────────────────────────────────────
+
+  GOAL:
+    Upgrade FlyPolicyNetwork to handle:
+      - Larger input (20 sensors vs 5)
+      - Continuous action output (Gaussian vs Categorical)
+      - Actor-Critic architecture (required for PPO)
+      - Deeper sparse network
+
+  ARCHITECTURE:
+    Input (20)
+       ↓
+    MaskedLinear(20 → 64, sparsity=0.8)
+       ↓ ReLU
+    MaskedLinear(64 → 64, sparsity=0.8)
+       ↓ ReLU
+       ├── Actor head: MaskedLinear(64 → 4) → Tanh → action mean
+       │              + log_std parameter → Gaussian distribution
+       └── Critic head: MaskedLinear(64 → 1) → state value V(s)
+
+  ACTIVE SYNAPSE COUNT:
+    Layer 1: 20 × 64 × 0.2  = ~256 active
+    Layer 2: 64 × 64 × 0.2  = ~819 active
+    Actor:   64 × 4          = 256  active
+    Critic:  64 × 1          = 64   active
+    Total:   ~1395 active synapses out of ~6976 possible
+    Still only 20% connected — biologically constrained
+
+  SUCCESS CRITERIA:
+    - Forward pass produces valid Gaussian distribution
+    - Critic outputs scalar value estimate
+    - Gradient check: severed synapses still have zero gradient
+
+────────────────────────────────────────────────────────────────────────────────
+  PHASE 8 — Domain Randomization
+  File: domain_rand.py
+  Hardware: M1 MacBook Air
+  Estimated Time: 1 session
+────────────────────────────────────────────────────────────────────────────────
+
+  GOAL:
+    Make the trained policy robust to sim-to-real gap by randomizing
+    every aspect of the simulation that might differ from reality.
+
+  THIS IS THE SIM-TO-REAL BRIDGE:
+    The idea: if the policy works across a HUGE range of simulated
+    conditions, it will probably work in at least one real condition.
+
+  WHAT WE RANDOMIZE:
+    Environment:
+      - Tunnel radius          : uniform(25, 100)
+      - Curve intensity        : uniform(0.05, 1.0)
+      - Curve smoothness       : uniform(0.02, 0.15)
+      - Tunnel length          : uniform(500, 2000) steps
+      - Obstacle density       : uniform(0, 0.3)
+
+    Sensors:
+      - Gaussian noise sigma   : uniform(0, 0.08)
+      - Sensor dropout prob    : uniform(0, 0.1)
+      - Sensor delay (steps)   : randint(0, 3)
+      - Max range variation    : uniform(0.8, 1.2) × nominal
+
+    Physics:
+      - Gravity scale          : uniform(0.8, 1.2)
+      - Drag coefficient       : uniform(0.7, 1.3)
+      - Motor response time    : uniform(0.8, 1.2)
+      - Mass                   : uniform(0.8, 1.2) × nominal
+
+    Initial conditions:
+      - Start position jitter  : uniform(-10, 10) all axes
+      - Start velocity         : uniform(-2, 2) all axes
+      - Start orientation      : uniform(-15°, 15°) all axes
+
+  SUCCESS CRITERIA:
+    - Policy trained WITH domain rand generalizes to unseen tunnel configs
+    - Performance gap < 20% between easiest and hardest configs
+
+────────────────────────────────────────────────────────────────────────────────
+  PHASE 9 — Real FlyWire Connectome Integration
+  File: connectome.py
+  Hardware: M1 MacBook Air
+  Estimated Time: 2-3 sessions
+  Dependencies: cloudvolume, navis, fafbseg
+────────────────────────────────────────────────────────────────────────────────
+
+  THIS IS THE CORE SCIENTIFIC CONTRIBUTION
+
+  DATA SOURCE:
+    FlyWire Consortium, Princeton University
+    Paper: "Neuronal wiring diagram of an adult brain" (Nature, 2023)
+    URL  : fly.flywire.ai
+    Data : ~130,000 neurons, ~50,000,000 synapses, fully mapped
+
+  WHICH NEURONS WE EXTRACT:
+    We only care about the visual navigation subsystem:
+
+    Lamina (L1, L2, L3):
+      - First stage visual processing
+      - Detect edges, contrast, motion onset
+      - ~400 neurons
+
+    Medulla (T4, T5):
+      - Motion direction selective neurons
+      - T4: ON motion (light → dark)
+      - T5: OFF motion (dark → light)
+      - ~1200 neurons total
+      - Critical for optic flow sensing
+
+    Lobula Plate (LPLC2):
+      - Looming object detector
+      - Fires when something approaches on collision course
+      - ~20 neurons
+      - Directly relevant to wall avoidance
+
+    Descending Neurons (DNp09, DNa02, others):
+      - Connect brain to motor system
+      - ~50 neurons
+      - These ARE the action outputs
+
+  PIPELINE:
+    Step 1: Download neuron IDs for above cell types from FlyWire
+    Step 2: Query synapse table for connections BETWEEN these neurons
+    Step 3: Build adjacency matrix A where A[i,j] = synapse count
+    Step 4: Threshold: keep connections with > N synapses
+    Step 5: Scale adjacency matrix to match our network dimensions
+            using hierarchical clustering / dimensionality reduction
+    Step 6: Use scaled matrix as the MaskedLinear mask
+    Step 7: Train with PPO, weights learned, topology fixed
+
+  THE KEY EXPERIMENT:
+    Train 3 identical models, same everything EXCEPT the mask:
+      Model A: Dense (no mask)             — baseline
+      Model B: Random sparse (80%)         — current approach
+      Model C: FlyWire connectome topology — our hypothesis
+
+    Compare:
+      - Sample efficiency (episodes to reach reward threshold)
+      - Generalization (performance on unseen tunnel configs)
+      - Parameter efficiency (reward per active synapse)
+      - Robustness to sensor noise
+
+  SUCCESS CRITERIA:
+    - Connectome mask loads without errors
+    - Model C trains successfully with biological topology
+    - At least one metric where C > B > A (or interesting failure!)
+
+────────────────────────────────────────────────────────────────────────────────
+  PHASE 10 — Benchmarking Suite
+  File: benchmark.py
+  Hardware: M1 + Modal.com
+  Estimated Time: 2 sessions
+────────────────────────────────────────────────────────────────────────────────
+
+  EXPERIMENTS TO RUN:
+
+  Experiment 1: Sparsity Sweep
+    - Train identical networks at sparsity: 0%, 50%, 70%, 80%, 90%, 95%, 99%
+    - Plot: reward vs sparsity level
+    - Find: the minimum viable connectome
+    - Question: at what sparsity does performance collapse?
+
+  Experiment 2: Topology Comparison
+    - Dense vs Random Sparse vs FlyWire Connectome
+    - 5 random seeds each
+    - Report: mean ± std reward curves
+    - Statistical test: Wilcoxon signed-rank
+
+  Experiment 3: Generalization Test
+    - Train on easy tunnel (low curve intensity)
+    - Test on: medium, hard, very hard tunnels (zero-shot)
+    - Compare generalization gap across all 3 architectures
+
+  Experiment 4: Sample Efficiency
+    - How many episodes to reach reward = 300?
+    - Plot: episodes to threshold vs architecture
+
+  Experiment 5: Noise Robustness
+    - Train without noise
+    - Test with increasing sensor noise levels
+    - Compare degradation curves
+
+  METRICS TRACKED:
+    - Episode reward (mean, std, max)
+    - Steps to crash (survival time)
+    - Episodes to threshold (sample efficiency)
+    - Active parameter count
+    - Inference time (ms per step)
+    - Gradient magnitude through network
+
+────────────────────────────────────────────────────────────────────────────────
+  PHASE 11 — Cloud Training
+  File: modal_train.py
+  Hardware: Modal.com (A100 GPU)
+  Estimated Time: 1 session setup + ongoing
+────────────────────────────────────────────────────────────────────────────────
+
+  WHEN TO USE CLOUD:
+    - PPO runs > 1M steps
+    - Parallel environment training (8+ envs)
+    - Hyperparameter sweeps (grid search)
+    - Benchmarking all 3 architectures × 5 seeds
+
+  MODAL.COM SETUP:
+    pip install modal
+    modal token new
+    
+    # Write modal_train.py with @app.function decorator
+    # Same PPO code as train_ppo.py
+    # Modal handles the GPU allocation automatically
+
+  COST ESTIMATE:
+    A100 40GB: ~$0.50/hour on Modal
+    1M step PPO run: ~2 hours = ~$1.00
+    Full benchmark suite (3 models × 5 seeds): ~$15-20 total
+    Very affordable for research
+
+  HUGGINGFACE INTEGRATION:
+    - Upload trained weights to HuggingFace Hub
+    - Host benchmark results as a dataset
+    - Eventually: HuggingFace Space with live demo
+
+
+════════════════════════════════════════════════════════════════════════════════
+  SECTION 5: RESEARCH QUESTIONS & HYPOTHESES
+════════════════════════════════════════════════════════════════════════════════
+
+  RQ1: Can a biologically-constrained sparse network learn drone navigation?
+       H1: Yes, sparse connectome networks (≥80% severed) can achieve
+           comparable performance to dense networks in simulated navigation.
+
+  RQ2: Does biological topology outperform random sparsity?
+       H2: FlyWire connectome topology will show better sample efficiency
+           than random sparse masks of equivalent density, because biological
+           wiring encodes useful computational motifs (edge detection,
+           motion detection, looming response).
+
+  RQ3: What is the minimum viable connectome for navigation?
+       H3: A network with ≥95% sparsity (only 5% connections active) can
+           still learn basic obstacle avoidance, but generalization requires
+           at least 80% sparsity or better.
+
+  RQ4: Does sparse topology improve sim-to-real transfer?
+       H4: Models trained with domain randomization + sparse connectome
+           will show smaller performance degradation when tested on
+           out-of-distribution environments than dense baselines.
+
+  RQ5: What biological circuit motifs are most important for navigation?
+       H5: The looming detection circuit (LPLC2) will be most critical —
+           ablating it from the connectome mask will cause disproportionate
+           performance loss in collision avoidance.
+
+
+════════════════════════════════════════════════════════════════════════════════
+  SECTION 6: PUBLISHING PLAN
+════════════════════════════════════════════════════════════════════════════════
+
+  PAPER TITLE (draft):
+    "Connectome-Constrained Sparse Policy Networks for 
+     Biologically-Inspired Drone Navigation"
+
+  OR:
+    "Does Evolution Build Better Neural Controllers?
+     Comparing Drosophila Connectome Topology Against Random Sparsity
+     in Deep Reinforcement Learning for Autonomous Navigation"
+
+  TARGET VENUES (in order of preference):
+
+    Tier 1 (Reach):
+      - Nature Machine Intelligence
+      - Science Robotics
+      - NeurIPS (Neural Information Processing Systems)
+
+    Tier 2 (Target):
+      - ICLR (International Conference on Learning Representations)
+      - ICRA (International Conference on Robotics and Automation)
+      - CoRL (Conference on Robot Learning)
+
+    Tier 3 (Safe):
+      - IROS (Intelligent Robots and Systems)
+      - IEEE RA-L (Robotics and Automation Letters)
+      - Frontiers in Neurorobotics
+
+  PAPER STRUCTURE (draft outline):
+    1. Abstract
+    2. Introduction
+       - Drone navigation challenge
+       - Connectome-constrained RL (novel contribution)
+       - Summary of results
+    3. Background
+       - Deep RL for drone navigation
+       - Drosophila connectome (FlyWire)
+       - Sparse neural networks
+       - Neuromorphic computing
+    4. Method
+       - Environment design (3D tunnel + domain rand)
+       - MaskedLinear connectome layer
+       - FlyWire circuit extraction pipeline
+       - PPO training with sparse constraints
+    5. Experiments
+       - Sparsity sweep
+       - Topology comparison (Exp 1-5 from Phase 10)
+       - Ablation studies
+    6. Results & Discussion
+       - Does biological topology help? (RQ2)
+       - Minimum viable connectome (RQ3)
+       - Sim-to-real analysis (RQ4)
+       - Circuit motif analysis (RQ5)
+    7. Conclusion
+    8. Appendix: FlyWire extraction pipeline
+
+  PRE-PRINT STRATEGY:
+    - Upload to arXiv before conference submission
+    - Post code to GitHub (public, MIT license)
+    - Upload weights to HuggingFace Hub
+    - This establishes priority and gets community feedback
+
+  TIMELINE TO SUBMISSION:
+    Phases 1-4   : March 2026       ✅ Complete
+    Phases 5-8   : April 2026       (3D env + PPO + domain rand)
+    Phase 9      : May 2026         (real connectome)
+    Phase 10-11  : June 2026        (benchmarks + cloud training)
+    Paper writing: July 2026        (draft + revisions)
+    arXiv upload : August 2026      (pre-print)
+    Conference   : September 2026   (ICLR / CoRL deadline season)
+
+
+════════════════════════════════════════════════════════════════════════════════
+  SECTION 7: TECHNICAL ARCHITECTURE DECISIONS
+════════════════════════════════════════════════════════════════════════════════
+
+  DECISION 1: Why not use AirSim/Isaac Gym?
+    - Both require 6GB+ RAM (M1 Air has 8GB total, OS uses 2-3GB)
+    - AirSim is Windows/Linux primary, Mac support is unstable
+    - Isaac Gym requires NVIDIA GPU
+    - Custom env gives full control over domain randomization
+    - Can wrap AirSim LATER once algorithm is proven
+
+  DECISION 2: Why PyTorch over JAX?
+    - MPS (Apple Metal) backend for M1 GPU acceleration
+    - Better ecosystem for RL (stable-baselines3 compatible)
+    - Easier debugging with eager execution
+    - JAX would be faster on TPU but we don't have TPU access
+
+  DECISION 3: Why PPO over SAC/TD3?
+    - PPO works well with sparse rewards (common in navigation)
+    - SAC requires dense rewards or reward shaping
+    - PPO is on-policy: simpler to implement from scratch
+    - TD3 is off-policy: needs large replay buffer (memory pressure on M1)
+
+  DECISION 4: Why discrete → continuous action upgrade?
+    - Phase 1-4: Discrete(3) for simplicity and fast iteration
+    - Phase 5+: Box(4) because real drones have continuous controls
+    - The switch happens WITH the 3D env upgrade (Phase 5-7)
+    - Can always discretize continuous actions for hardware safety
+
+  DECISION 5: Why fixed mask vs learned sparsity?
+    - Fixed mask = biologically realistic (fly brain is fixed at birth)
+    - Learned sparsity (lottery ticket, L1 pruning) is different question
+    - Our hypothesis is specifically about TOPOLOGY as inductive bias
+    - Learned sparsity would conflate two separate variables
+    - We DO want a separate experiment: does the mask need to be fixed?
+
+
+════════════════════════════════════════════════════════════════════════════════
+  SECTION 8: KEY DEPENDENCIES & VERSIONS
+════════════════════════════════════════════════════════════════════════════════
+
+  CURRENT (requirements.txt):
+    gymnasium==0.29.1
+    pygame==2.5.2
+    torch==2.2.0
+    numpy==1.26.4
+
+  UPCOMING (Phase 5-9):
+    matplotlib>=3.8.0        # Training curves and benchmark plots
+    pandas>=2.0.0            # Results logging
+    cloudvolume>=3.0.0       # FlyWire connectome API
+    navis>=1.4.0             # Neuron analysis
+    fafbseg>=0.10.0          # FlyWire segmentation
+    modal>=0.55.0            # Cloud training
+    huggingface_hub>=0.20.0  # Model/dataset hosting
+    scipy>=1.11.0            # Statistical tests for benchmarks
+    tensorboard>=2.15.0      # Training visualization
+    tqdm>=4.66.0             # Progress bars
+
+  ENVIRONMENT:
+    Python    : 3.10 (conda, biodrone_env)
+    Conda     : miniforge (Apple Silicon native)
+    PyTorch   : MPS backend enabled
+    OS        : macOS (Apple Silicon M1)
+
+
+════════════════════════════════════════════════════════════════════════════════
+  SECTION 9: PROGRESS TRACKER
+════════════════════════════════════════════════════════════════════════════════
+
+  Update this section as phases complete.
+
+  [✅] Phase 1  : 2D Environment
+       Date: March 2026
+       Result: Environment working, random agent tested
+
+  [✅] Phase 2  : Sparse Brain (MaskedLinear)
+       Date: March 2026
+       Result: MPS confirmed, zero gradient through severed synapses verified
+               Active synapses: L1=31/160, L2=19/96
+
+  [✅] Phase 3  : REINFORCE Training
+       Date: March 2026
+       Result: Best avg reward = 513.96 over 1000 episodes
+               Training time = 46 min on M1 MPS
+               Connectome integrity: ✅ intact post-training
+
+  [✅] Phase 4  : 2D Pygame Visualizer
+       Date: March 2026
+       Result: Live visualization working, sensor rays, connectome panel
+
+  [⏳] Phase 4A : Pseudo-3D Renderer
+       Date: -
+       Result: -
+
+  [⏳] Phase 5  : 3D Environment
+       Date: -
+       Result: -
+
+  [⏳] Phase 6  : PPO Training
+       Date: -
+       Result: -
+
+  [⏳] Phase 7  : Continuous Actions + Scaled Brain
+       Date: -
+       Result: -
+
+  [⏳] Phase 8  : Domain Randomization
+       Date: -
+       Result: -
+
+  [⏳] Phase 9  : Real FlyWire Connectome
+       Date: -
+       Result: -
+
+  [⏳] Phase 10 : Benchmarking Suite
+       Date: -
+       Result: -
+
+  [⏳] Phase 11 : Cloud Training (Modal.com)
+       Date: -
+       Result: -
+
+  [⏳] Phase 12 : Paper Submission
+       Date: Target August 2026 (arXiv)
+       Result: -
+
+
+════════════════════════════════════════════════════════════════════════════════
+  SECTION 10: USEFUL LINKS & RESOURCES
+════════════════════════════════════════════════════════════════════════════════
+
+  CONNECTOME DATA:
+    FlyWire main       : https://fly.flywire.ai
+    FlyWire paper      : https://www.nature.com/articles/s41586-023-06681-1
+    neuPrint (Janelia) : https://neuprint.janelia.org
+    FlyEM project      : https://www.janelia.org/project-team/flyem
+
+  KEY PAPERS TO READ:
+    1. "Neuronal wiring diagram of an adult brain" — Nature 2023
+       (The FlyWire connectome paper)
+    2. "Proximal Policy Optimization Algorithms" — Schulman et al. 2017
+       (The PPO paper)
+    3. "Sim-to-Real Transfer of Robotic Control with Dynamics Randomization"
+       — Peng et al. 2018  (Domain randomization bible)
+    4. "The Lottery Ticket Hypothesis" — Frankle & Carlin 2019
+       (Related sparse network work)
+    5. "Learning to Fly in Seconds" — Eschmann et al. 2023
+       (Fast drone RL — good baseline to compare against)
+    6. "Neurosymbolic AI" — survey papers on bio-inspired RL
+
+  TOOLS:
+    Modal.com          : https://modal.com  (cloud GPU)
+    HuggingFace        : https://huggingface.co
+    Weights & Biases   : https://wandb.ai   (experiment tracking)
+    arXiv              : https://arxiv.org
+
+  GITHUB REPOS TO STUDY:
+    stable-baselines3  : PPO reference implementation
+    cleanRL            : Clean single-file PPO implementation
+    gym-pybullet-drones: 3D drone RL environment (future reference)
+
+
+════════════════════════════════════════════════════════════════════════════════
+  SECTION 11: NOTES & DECISIONS LOG
+════════════════════════════════════════════════════════════════════════════════
+
+  [March 2026]
+  - Project started on M1 MacBook Air 8GB
+  - Chose custom Pygame env over AirSim due to memory constraints
+  - REINFORCE achieved 513.96 avg reward — strong baseline
+  - Decision: upgrade to PPO at Phase 6 (not before, need 3D env first)
+  - Decision: real connectome at Phase 9 (after algorithm is proven)
+  - Decision: publish to CoRL or ICLR as primary target
+  - Key insight: sparse connectome is the MOAT — nobody else is doing
+    this specific combination for drone RL
+
+  [Add new entries here as project progresses]
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  END OF CONTEXT FILE
+  Last updated: March 2026
+  Next action : Phase 4A — render_3d.py (Pseudo-3D first-person renderer)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
